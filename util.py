@@ -118,14 +118,14 @@ class BinanceArchive:
 
     def _get_path(self) -> str:
         if self.trading_type == 'spot':
-            trading_type_path = 'data/spot/'
+            trading_type_path = os.path.join('data', 'spot')
         else:
-            trading_type_path = "data/futures/{}/".format(self.trading_type)
+            trading_type_path = os.path.join('data', 'futures', self.trading_type)
         if self.mkt_data_type == "klines":
-            mkt_data_type_path = "daily/klines/{}/{}/".format(self.symbol, self.interval)
+            mkt_data_type_path = os.path.join('daily', 'klines', self.symbol, self.interval)
         else:
-            mkt_data_type_path = "daily/klines/{}/".format(self.symbol)
-        path = trading_type_path + mkt_data_type_path
+            mkt_data_type_path = os.path.join('daily', 'klines', self.symbol)
+        path = os.path.join(trading_type_path, mkt_data_type_path)
         return path
 
     def _get_file_path(self, filename):
