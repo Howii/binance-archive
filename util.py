@@ -73,7 +73,7 @@ class BinanceArchive:
         self.destination_dir: str = destination_dir if destination_dir else os.getcwd()
         self.dates = []
         self.files = []
-        self.path = ""
+        self.path: Path = Path()
         self._populate()
 
     @classmethod
@@ -89,9 +89,9 @@ class BinanceArchive:
         return result
 
     def download(self) -> None:
-        save_dir = os.path.join(self.destination_dir, self.path)
-        if not os.path.exists(save_dir):
-            Path(save_dir).mkdir(parents=True, exist_ok=True)
+        save_dir = Path(self.destination_dir, self.path)
+        if not save_dir.exists():
+            save_dir.mkdir(parents=True, exist_ok=True)
         for f in self.files:
             self._download_file(f)
 
@@ -116,39 +116,43 @@ class BinanceArchive:
             filename = "{}-{}-{}.zip".format(self.symbol, self.mkt_data_type, date.strftime("%Y-%m-%d"))
         return filename
 
-    def _get_path(self) -> str:
+    def _get_path(self) -> Path:
+        """
+        The path here is used as both directory path and URL
+        Path module is better at handling both cases
+        """
         if self.trading_type == 'spot':
-            trading_type_path = os.path.join('data', 'spot')
+            trading_type_path = Path('data', 'spot')
         else:
-            trading_type_path = os.path.join('data', 'futures', self.trading_type)
+            trading_type_path = Path('data', 'futures', self.trading_type)
         if self.mkt_data_type == "klines":
-            mkt_data_type_path = os.path.join('daily', 'klines', self.symbol, self.interval)
+            mkt_data_type_path = Path('daily', 'klines', self.symbol, self.interval)
         else:
-            mkt_data_type_path = os.path.join('daily', 'klines', self.symbol)
-        path = os.path.join(trading_type_path, mkt_data_type_path)
+            mkt_data_type_path = Path('daily', 'klines', self.symbol)
+        path = Path(trading_type_path, mkt_data_type_path)
         return path
 
-    def _get_file_path(self, filename):
-        return os.path.join(self.destination_dir, self.path, filename)
+    def _get_file_path(self, filename) -> Path:
+        return Path(self.destination_dir, self.path, filename)
 
     def _download_file(self, filename: str) -> None:
-        remote_url = BASE_URL + self.path + filename
+        remote_url = BASE_URL + Path(self.path, filename).as_posix()
         save_path = self._get_file_path(filename)
-        if os.path.exists(save_path):
+        if save_path.exists():
             print(f"{save_path} already exists. skip....")
             return
         download_with_buffer(remote_url, save_path)
 
     def _load_dataframe(self, filename: str) -> pd.DataFrame:
         save_path = self._get_file_path(filename)
-        if not os.path.exists(save_path):
+        if not save_path.exists():
             self._download_file(filename)
         column_names = COLUMNS[self.trading_type][self.mkt_data_type]
         df = pd.read_csv(save_path, compression='zip', header=None, names=column_names)
         return df
 
 
-def download_with_buffer(remote_url: str, save_path: str) -> None:
+def download_with_buffer(remote_url: str, save_path: Path) -> None:
     try:
         dl_file = urllib.request.urlopen(remote_url)
         length = int(dl_file.getheader('content-length'))
@@ -156,7 +160,7 @@ def download_with_buffer(remote_url: str, save_path: str) -> None:
         if length:
             blocksize = max(blocksize, length // 100)
         dl_progress = 0
-        print("\nFile Download: {}".format(save_path))
+        print("File Download: {}".format(save_path))
         with open(save_path, 'wb') as out_file:
             while True:
                 buf = dl_file.read(blocksize)
@@ -167,6 +171,7 @@ def download_with_buffer(remote_url: str, save_path: str) -> None:
                 done = int(50 * dl_progress / length)
                 sys.stdout.write("\r[%s%s]" % ('#' * done, '.' * (50 - done)))
                 sys.stdout.flush()
+        print()
     except urllib.error.HTTPError:
         print("\nFile not found: {}".format(remote_url))
 
