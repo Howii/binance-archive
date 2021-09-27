@@ -148,7 +148,10 @@ class BinanceArchive:
         if not save_path.exists():
             self._download_file(filename)
         column_names = COLUMNS[self.trading_type][self.mkt_data_type]
-        df = pd.read_csv(save_path, compression='zip', header=None, names=column_names)
+        if not save_path.exists():
+            df = pd.DataFrame(columns=column_names)
+        else:
+            df = pd.read_csv(save_path, compression='zip', header=None, names=column_names)
         return df
 
 
